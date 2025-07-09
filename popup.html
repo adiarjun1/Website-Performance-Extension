@@ -16,12 +16,186 @@
         </header>
         <main id="metrics">
             <div class="metric" ng-repeat="metric in metrics" ng-if="settings[metric.key]" ng-class="metric.class">
-                <span class="metric-title">{{metric.name}}:</span>
+              <span class="metric-clickable"
+                ng-click="showInfo(metric.key)"
+                tabindex="0"
+                ng-keypress="$event.keyCode === 13 && showInfo(metric.key)"
+                aria-label="Show info for {{metric.name}}">
+                <span class="metric-title">{{metric.name}}</span>
                 <span class="metric-value">{{metric.value}}</span>
+              </span>
             </div>
             <div ng-if="!hasData">No data, refresh.</div>
             <canvas id="metricsChart" ng-if="historicalDataAvailable"></canvas>
         </main>
+        <!-- Modal for metric info -->
+        <div class="info-modal-backdrop" ng-if="modalInfoKey" ng-click="closeInfoModal()">
+          <div class="info-modal" ng-click="$event.stopPropagation()">
+            <button class="close-modal" ng-click="closeInfoModal()" aria-label="Close info">&times;</button>
+            <div ng-switch="modalInfoKey">
+              <div ng-switch-when="fcp">
+                <strong>First Contentful Paint (FCP)</strong><br/>
+                <em>What it tells you:</em> The time until the browser renders the first bit of page content (text, image, canvas), signaling to users that something is happening.<br/><br/>
+                <em>Best practices:</em>
+                <ul>
+                  <li>Preload critical CSS and fonts to unblock rendering sooner.</li>
+                  <li>Defer or async non-critical JavaScript so it doesn’t block the render path.</li>
+                  <li>Inline above-the-fold styles to eliminate extra network round-trips.</li>
+                </ul>
+                <em>System-design impact:</em>
+                <ul>
+                  <li>Edge vs. origin rendering: Moving SSR or edge includes closer to users speeds FCP but adds build/deploy complexity.</li>
+                  <li>Critical-asset bundling trade-offs: Separating and versioning critical assets optimizes FCP but requires sophisticated cache-busting.</li>
+                  <li>HTML cache TTL: Short TTLs for dynamic HTML can degrade FCP vs. long-TTL edge caches—balance freshness with speed.</li>
+                </ul>
+              </div>
+              <div ng-switch-when="fid">
+                <strong>First Input Delay (FID)</strong><br/>
+                <em>What it tells you:</em> How quickly the page begins to respond to the user’s first interaction (click, tap, keypress), reflecting perceived interactivity.<br/><br/>
+                <em>Best practices:</em>
+                <ul>
+                  <li>Break up long JavaScript tasks into smaller chunks (e.g. via Web Workers).</li>
+                  <li>Lazy-load heavy scripts and defer non-essential event listeners.</li>
+                  <li>Code-split so initial bundles stay under ~50 KB.</li>
+                </ul>
+                <em>System-design impact:</em>
+                <ul>
+                  <li>Client vs. edge compute: Offloading CPU-intensive parsing to edge workers reduces main-thread work but increases network hops.</li>
+                  <li>Pipeline prioritization: Building “interaction-critical” bundles first improves FID but may push analytics or non-critical logic later.</li>
+                  <li>Autoscaling client proxies: In service-mesh setups, DNS or sidecar delays can stall script loads, worsening FID unless mesh is optimized.</li>
+                </ul>
+              </div>
+              <div ng-switch-when="cls">
+                <strong>Cumulative Layout Shift (CLS)</strong><br/>
+                <em>What it tells you:</em> The sum of unexpected layout shifts after initial render, measuring visual stability and preventing accidental taps.<br/><br/>
+                <em>Best practices:</em>
+                <ul>
+                  <li>Specify explicit width/height (or aspect-ratio) on all images and embeds.</li>
+                  <li>Reserve placeholder space for ads and dynamic components.</li>
+                  <li>Use font-display: swap or optional to avoid large text reflows.</li>
+                </ul>
+                <em>System-design impact:</em>
+                <ul>
+                  <li>Design-system enforcement: A component library that auto-reserves space reduces CLS but must be adopted across teams.</li>
+                  <li>CMS template schemas: Rigid templates (with defined dimensions) minimize shifts; flexible ones can introduce unpredictable layout changes.</li>
+                  <li>Third-party isolation: Serving widgets via edge-hosted iframes or SDKs isolates their load behavior, stabilizing your core layout.</li>
+                </ul>
+              </div>
+              <div ng-switch-when="ttfb">
+                <strong>Time to First Byte (TTFB)</strong><br/>
+                <em>What it tells you:</em> The time from request initiation until the first byte of the response arrives, reflecting server and network latency.<br/><br/>
+                <em>Best practices:</em>
+                <ul>
+                  <li>Cache dynamic content at CDN edge and origin layers.</li>
+                  <li>Optimize backend code paths and database queries for critical endpoints.</li>
+                  <li>Use HTTP/2 (or gRPC) to cut header and handshake overhead.</li>
+                </ul>
+                <em>System-design impact:</em>
+                <ul>
+                  <li>Multi-region vs. single-region: Deploying servers in multiple regions reduces TTFB but adds replication and LB complexity.</li>
+                  <li>Cache-hierarchy TTL trade-offs: Long TTLs boost TTFB via cache hits; short TTLs ensure freshness at the cost of more origin hits.</li>
+                  <li>Autoscaling policies: Warm-pool strategies smooth scale-up spikes, preventing TTFB degradation under sudden load.</li>
+                </ul>
+              </div>
+              <div ng-switch-when="ttlb">
+                <strong>Total Load Time (TTLB)</strong><br/>
+                <em>What it tells you:</em> The duration from request start until the browser’s load event fires—i.e., when all resources are fetched and parsed.<br/><br/>
+                <em>Best practices:</em>
+                <ul>
+                  <li>Lazy-load below-the-fold assets with loading="lazy".</li>
+                  <li>Compress and minify JS/CSS bundles.</li>
+                  <li>Use prefetch/preload hints for critical assets.</li>
+                </ul>
+                <em>System-design impact:</em>
+                <ul>
+                  <li>SSR vs. CSR balance: SSR speeds full-page readiness but adds server compute; CSR shifts load to slower clients.</li>
+                  <li>CDN invalidation complexity: Complex purge workflows can cause stale assets, spiking load time until caches clear.</li>
+                  <li>CI/CD performance budgets: Enforcing time/size budgets prevents regressions but may slow down release velocity.</li>
+                </ul>
+              </div>
+              <div ng-switch-when="dnsLookupTime">
+                <strong>DNS Lookup Time</strong><br/>
+                <em>What it tells you:</em> The time to resolve a hostname to an IP address—this delay precedes any TCP/TLS handshake or HTTP request.<br/><br/>
+                <em>Best practices:</em>
+                <ul>
+                  <li>Choose a low-latency, geo-distributed DNS provider.</li>
+                  <li>Enable DNS prefetch for critical external domains.</li>
+                  <li>Consolidate subdomains to reduce distinct lookups.</li>
+                </ul>
+                <em>System-design impact:</em>
+                <ul>
+                  <li>TTL strategy trade-offs: Short TTLs support service-discovery agility but increase cache misses; long TTLs improve lookup speed but delay failover.</li>
+                  <li>Global DNS distribution: Properly placed name servers cut lookup hops; misconfigured delegation forces fallbacks to origin.</li>
+                  <li>CDN anycast integration: Edge DNS caches slash lookup times; gaps in propagation spike this metric.</li>
+                </ul>
+              </div>
+              <div ng-switch-when="totalPageSize">
+                <strong>Total Page Size</strong><br/>
+                <em>What it tells you:</em> The sum of bytes downloaded for HTML, CSS, JS, images, fonts, etc.—a direct driver of download and parse time.<br/><br/>
+                <em>Best practices:</em>
+                <ul>
+                  <li>Compress assets with gzip/Brotli and serve with correct headers.</li>
+                  <li>Optimize and lazy-load images (WebP/AVIF).</li>
+                  <li>Tree-shake and minify JS/CSS; remove unused code.</li>
+                </ul>
+                <em>System-design impact:</em>
+                <ul>
+                  <li>Chunking vs. bundling: Larger bundles boost cache hits but delay initial load; smaller chunks speed first paint but add request overhead.</li>
+                  <li>CDN optimization features: Offloading image resizing and code minification to the CDN reduces origin load but ties you to vendor capabilities.</li>
+                  <li>Fingerprinting workflows: Long-TTL fingerprinted assets maximize cache benefits but need robust invalidation in CI/CD.</li>
+                </ul>
+              </div>
+              <div ng-switch-when="numHttpsRequests">
+                <strong>Number of HTTPS Requests</strong><br/>
+                <em>What it tells you:</em> The count of secure network calls (assets, API, third-party)—each TLS handshake adds overhead.<br/><br/>
+                <em>Best practices:</em>
+                <ul>
+                  <li>Bundle or sprite small assets (CSS sprites, JS bundles).</li>
+                  <li>Inline critical CSS/JS snippets into HTML.</li>
+                  <li>Use preconnect/preload for essential domains.</li>
+                </ul>
+                <em>System-design impact:</em>
+                <ul>
+                  <li>Protocol choice: HTTP/2/3 multiplexing reduces penalties of many small requests; if you must support HTTP/1.1, bundling remains key.</li>
+                  <li>API granularity: Fine-grained microservices boost decoupling but increase calls; aggregate endpoints reduce overhead but risk over-fetching.</li>
+                  <li>Edge request collapsing: Edge or proxy layers can batch multiple backend calls into one client request, trimming overall count.</li>
+                </ul>
+              </div>
+              <div ng-switch-when="pageLoadTime">
+                <strong>Page Load Time</strong><br/>
+                <em>What it tells you:</em> Time until the browser’s load event—when all resources are fully loaded and parsed.<br/><br/>
+                <em>Best practices:</em>
+                <ul>
+                  <li>Defer non-critical JS and lazy-load offscreen content.</li>
+                  <li>Leverage long-cache headers for static assets.</li>
+                  <li>Audit and remove unused third-party scripts.</li>
+                </ul>
+                <em>System-design impact:</em>
+                <ul>
+                  <li>Edge-served SSR: Serving HTML from edge nodes cuts load time but duplicates build artifacts per region.</li>
+                  <li>Multi-layer cache: Browser, CDN, and origin caches speed repeat visits but complicate invalidation logic.</li>
+                  <li>Autoscaling cold starts: Cold serverless or container instances can spike load time until warm pools spin up.</li>
+                </ul>
+              </div>
+              <div ng-switch-when="tti">
+                <strong>Time to Interactive (TTI)</strong><br/>
+                <em>What it tells you:</em> When the page reliably responds to user input without noticeable jank—marking full interactivity.<br/><br/>
+                <em>Best practices:</em>
+                <ul>
+                  <li>Split long tasks into Web Workers or idle-callback chunks.</li>
+                  <li>Prioritize hydration of above-the-fold UI components.</li>
+                  <li>Defer analytics and other non-core scripts until after interactivity.</li>
+                </ul>
+                <em>System-design impact:</em>
+                <ul>
+                  <li>SSR hydration vs. CSR: Hydrating an SSR shell speeds TTI but duplicates render work; pure CSR offloads hunger to the client.</li>
+                  <li>Chunking strategy: Separate “runtime,” “vendor,” and “app” bundles improve TTI focus but add CI/CD complexity.</li>
+                  <li>Edge compute offload: Delegating heavy parsing or pre-rendering to edge functions reduces client CPU load but raises operational overhead.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
         <footer>
             <button ng-click="refreshPage()">Refresh</button>
             <a href="settings.html" id="settings">Settings</a>

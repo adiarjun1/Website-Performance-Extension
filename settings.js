@@ -8,11 +8,8 @@ app.controller('SettingsController', ['$scope', ($scope) => {
         fcp: true,
         totalPageSize: true,
         numHttpsRequests: true,
-        si: true,
-        lcp: true,
         fid: true,
         cls: true,
-        maxFid: true,
         pageLoadTime: true,
         tti: true
     };

@@ -2,22 +2,18 @@
   // Removed AWS imports and S3/DynamoDB functions
 
   let clsValue = 0;
-  let lcpValue = 0;
 
   const performanceData = {
     fcp: null,
-    lcp: null,
     fid: null,
     cls: null,
-    maxFid: null,
     pageLoadTime: null,
     tti: null,
     ttfb: null,
     ttlb: null,
     dnsLookupTime: null,
     totalPageSize: 0,
-    numHttpsRequests: 0,
-    si: null
+    numHttpsRequests: 0
   };
 
   const updateMetrics = () => {
@@ -27,25 +23,7 @@
     });
   };
 
-  const calculateSpeedIndex = () => {
-    // using the performance api below, everything documented on their website
-    const paintEntries = performance.getEntriesByType('paint');
-    const navigationEntries = performance.getEntriesByType('navigation');
-
-    if (paintEntries.length > 0 && navigationEntries.length > 0) {
-      const firstPaint = paintEntries.find(entry => entry.name === 'first-paint');
-      const firstContentfulPaint = paintEntries.find(entry => entry.name === 'first-contentful-paint');
-
-      if (firstPaint && firstContentfulPaint) {
-        const start = navigationEntries[0].startTime;
-        const fcpTime = firstContentfulPaint.startTime;
-        const lcpTime = lcpValue;
-
-        // Easy Speed Index calculation (actually a little more complicated)
-        performanceData.si = Number(((fcpTime + lcpTime) / 2 - start).toFixed(1));
-      }
-    }
-  };
+  // Remove all logic related to si, lcp, and maxFid
 
   // Now update everything below
 
@@ -64,7 +42,6 @@
         if (entry.entryType === 'first-input') {
           const fidValue = Number((entry.processingStart - entry.startTime).toFixed(1));
           performanceData.fid = fidValue;
-          performanceData.maxFid = Math.max(performanceData.maxFid || 0, fidValue);
           updateMetrics();
         }
       }

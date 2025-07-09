@@ -9,11 +9,8 @@ app.controller('MetricsController', ['$scope', '$timeout', ($scope, $timeout) =>
         fcp: [1000, 2000, 3000],
         totalPageSize: [2000000, 3000000, 5000000], 
         numHttpsRequests: [50, 100, 150],
-        si: [3500, 4500, 6000],
-        lcp: [2500, 4000, 6000],
         fid: [100, 300, 500],
         cls: [0.1, 0.25, 0.5],
-        maxFid: [150, 300, 500],
         pageLoadTime: [2500, 4000, 6000],
         tti: [3000, 5000, 8000]
     };
@@ -32,6 +29,13 @@ app.controller('MetricsController', ['$scope', '$timeout', ($scope, $timeout) =>
     $scope.hasData = false;
     $scope.error = '';
     $scope.historicalDataAvailable = false;
+    $scope.modalInfoKey = null;
+    $scope.showInfo = (key) => {
+        $scope.modalInfoKey = key;
+      };
+    $scope.closeInfoModal = () => {
+        $scope.modalInfoKey = null;
+    };
 
     const loadMetrics = () => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -48,11 +52,8 @@ app.controller('MetricsController', ['$scope', '$timeout', ($scope, $timeout) =>
                             { key: 'fcp', name: 'FCP', value: (metrics.fcp !== null && metrics.fcp !== undefined) ? metrics.fcp + ' ms' : 'N/A', class: getMetricClass('fcp', metrics.fcp) },
                             { key: 'totalPageSize', name: 'Total Page Size', value: (metrics.totalPageSize !== null && metrics.totalPageSize !== undefined) ? metrics.totalPageSize + ' bytes' : 'N/A', class: getMetricClass('totalPageSize', metrics.totalPageSize) },
                             { key: 'numHttpsRequests', name: '# of HTTPS Requests', value: (metrics.numHttpsRequests !== null && metrics.numHttpsRequests !== undefined) ? metrics.numHttpsRequests : 'N/A', class: getMetricClass('numHttpsRequests', metrics.numHttpsRequests) },
-                            { key: 'si', name: 'Speed Index', value: (metrics.si !== null && metrics.si !== undefined) ? metrics.si + ' ms' : 'N/A', class: getMetricClass('si', metrics.si) },
-                            { key: 'lcp', name: 'LCP', value: (metrics.lcp !== null && metrics.lcp !== undefined) ? metrics.lcp + ' ms' : 'N/A', class: getMetricClass('lcp', metrics.lcp) },
                             { key: 'fid', name: 'FID', value: (metrics.fid !== null && metrics.fid !== undefined) ? metrics.fid + ' ms' : 'N/A', class: getMetricClass('fid', metrics.fid) },
                             { key: 'cls', name: 'CLS', value: (metrics.cls !== null && metrics.cls !== undefined) ? metrics.cls : 'N/A', class: getMetricClass('cls', metrics.cls) },
-                            { key: 'maxFid', name: 'Max FID', value: (metrics.maxFid !== null && metrics.maxFid !== undefined) ? metrics.maxFid + ' ms' : 'N/A', class: getMetricClass('maxFid', metrics.maxFid) },
                             { key: 'pageLoadTime', name: 'Page Load Time', value: (metrics.pageLoadTime !== null && metrics.pageLoadTime !== undefined) ? metrics.pageLoadTime + ' ms' : 'N/A', class: getMetricClass('pageLoadTime', metrics.pageLoadTime) },
                             { key: 'tti', name: 'TTI', value: (metrics.tti !== null && metrics.tti !== undefined) ? metrics.tti + ' ms' : 'N/A', class: getMetricClass('tti', metrics.tti) }
                         ];
